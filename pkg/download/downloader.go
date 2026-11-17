@@ -390,6 +390,16 @@ func (d *Downloader) Resolve(req *base.Request, opts *base.Options) (rr *Resolve
 		return
 	}
 
+	// [DEBUG-LOG] 记录建任务解析入参，便于定位创建任务失败
+	defer func() {
+		if err != nil {
+			d.Logger.Error().Err(err).Msgf("[Resolve] FAILED url=%s err=%v", req.URL, err)
+		} else {
+			d.Logger.Info().Msgf("[Resolve] OK url=%s", req.URL)
+		}
+	}()
+	d.Logger.Info().Msgf("[Resolve] begin url=%s", req.URL)
+
 	res, err := d.triggerOnResolve(req)
 	if err != nil {
 		return
@@ -1254,9 +1264,31 @@ func (d *Downloader) doStart(task *Task) (err error) {
 		if task.Meta.Res == nil {
 			err := task.fetcher.Resolve(task.Meta.Req, task.Meta.Opts)
 			if err != nil {
+				d.Logger.Error().Err(err).Msgf("[Start] Resolve FAILED task=%s url=%s", task.ID, task.Meta.Req.URL)
 				return err
 			}
 			task.Meta.Res = task.fetcher.Meta().Res
+		}
+
+		// [DEBUG-LOG] 记录任务实际生效的连接数、是否支持分段、是否续传
+		{
+			connCount := 0
+			rangeOK := false
+			if task.Meta.Opts != nil && task.Meta.Opts.Extra != nil {
+				if e, ok := task.Meta.Opts.Extra.(*http.OptsExtra); ok {
+					connCount = e.Connections
+				}
+			}
+			if task.Meta.Res != nil {
+				rangeOK = task.Meta.Res.Range
+			}
+			d.Logger.Info().Msgf("[Start] task=%s connections=%d range=%v resumed=%v size=%d url=%s",
+				task.ID, connCount, rangeOK, !needCreate, func() int64 {
+					if task.Meta.Res != nil {
+						return task.Meta.Res.Size
+					}
+					return 0
+				}(), task.Meta.Req.URL)
 		}
 
 		if needCreate {
