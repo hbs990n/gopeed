@@ -127,9 +127,9 @@ jobs:
           mv gopeed-*-linux.AppImage Gopeed-v${VERSION}-linux-${ARCH}.AppImage
           mv gopeed-*-linux.deb Gopeed-v${VERSION}-linux-${ARCH}.deb
           mv gopeed-*-linux.rpm Gopeed-v${VERSION}-linux-${ARCH}.rpm
-      - name: Upload
-        uses: shogo82148/actions-upload-release-asset@v1
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ needs.get-release.outputs.upload_url }}
-          asset_path: ui/flutter/dist/*/*
-          overwrite: true
+          name: gopeed-linux-amd64
+          path: ui/flutter/dist/**/*
+          if-no-files-found: error
